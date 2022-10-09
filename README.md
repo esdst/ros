@@ -34,8 +34,10 @@ sudo apt install
 ros-noetic-desktop-full
 ````
 
+5. Source the ROS
 
-
-
+````
+source /opt/ros/noetic/setup.bash
+````
 
 
