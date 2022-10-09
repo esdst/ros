@@ -24,8 +24,9 @@
 
 4. Install ROS `noetic`version
 
-```sudo apt install```
-```ros-noetic-desktop-full```
+sudo apt install
+
+ros-noetic-desktop-full
 
 
 
