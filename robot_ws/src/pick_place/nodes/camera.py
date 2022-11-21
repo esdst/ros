@@ -2,6 +2,7 @@
 
 import rospy
 from std_msgs.msg import String
+from sensor_msgs.msg import Image
 
 class Camera:
 
@@ -9,9 +10,16 @@ class Camera:
         self.sub = rospy.Subscriber('/type', String, callback=self.callback)
         rospy.loginfo("[Camera]: Subscriber started")
 
+        self.img_pub = rospy.Publisher('/camera/image', Image, queue_size=5)
+
     def callback(self, msg):
         rospy.loginfo("I hear you : %s", msg.data)
 
+    def publish_img(self) -> None:
+        img = Image()
+        img.header.stamp = rospy.Time.now()
+        self.img_pub.publish(img)
+        rospy.loginfo("[Camera]: Publishing Image")
 
 if __name__ == '__main__':
 
@@ -23,5 +31,14 @@ if __name__ == '__main__':
     camera = Camera()
 
     # running node indefinetly
-    rospy.spin()
+    # rospy.spin()
+
+    # setting rate 10Hz
+    rate = rospy.Rate(10)
+
+    while not rospy.is_shutdown():
+
+        camera.publish_img()
+
+        rate.sleep()
 

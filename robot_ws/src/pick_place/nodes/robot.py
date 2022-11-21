@@ -2,14 +2,24 @@
 
 import rospy
 from std_msgs.msg import String
+from geometry_msgs.msg import PoseStamped
 
 class Robot:
 
     def __init__(self) -> None:
         self.pub = rospy.Publisher('/type', String, queue_size=5)
 
+        # creating pose publisher
+        self.pose_pub = rospy.Publisher('/robot/pose', PoseStamped, queue_size=5)
+
     def publish(self):
         self.pub.publish("Hi! I am robot")
+
+    def publish_pose(self) -> None:
+        pose_stamped = PoseStamped()
+        pose_stamped.header.stamp = rospy.Time.now()
+        self.pose_pub.publish(pose_stamped)
+        
 
 if __name__ == '__main__':
 
@@ -31,6 +41,9 @@ if __name__ == '__main__':
         if (cmd == 'y'):
             robot.publish()
             rospy.loginfo("[Robot]: Publishing")
+
+            robot.publish_pose()
+            rospy.loginfo("[Robot]: publishing pose")
 
         # if not then shutdown
         else:
