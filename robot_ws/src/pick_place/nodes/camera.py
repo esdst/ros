@@ -13,13 +13,13 @@ class Camera:
         self.img_pub = rospy.Publisher('/camera/image', Image, queue_size=5)
 
     def callback(self, msg):
-        rospy.loginfo("I hear you : %s", msg.data)
+        rospy.loginfo("[Camera]: I hear you : %s", msg.data)
 
     def publish_img(self) -> None:
         img = Image()
         img.header.stamp = rospy.Time.now()
         self.img_pub.publish(img)
-        rospy.loginfo("[Camera]: Publishing Image")
+        #rospy.loginfo("[Camera]: Publishing Image")
 
 if __name__ == '__main__':
 
