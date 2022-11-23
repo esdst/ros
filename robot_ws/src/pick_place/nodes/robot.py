@@ -4,6 +4,14 @@ import rospy
 from std_msgs.msg import String
 from geometry_msgs.msg import PoseStamped
 from pick_place.msg import State
+from enum import Enum
+
+class RobotState(Enum):
+    IDLE = 0
+    ACTIVE = 1
+    PAUSED = 2
+    INTERRUPTED = 3
+
 
 class Robot:
 
@@ -13,6 +21,9 @@ class Robot:
         # creating pose publisher
         self.pose_pub = rospy.Publisher('/robot/pose', PoseStamped, queue_size=5)
 
+        # creating a state publisher
+        self.state_pub = rospy.Publisher('/robot/state', State, queue_size=5)
+
     def publish(self):
         self.pub.publish("Hi! I am robot")
 
@@ -20,7 +31,12 @@ class Robot:
         pose_stamped = PoseStamped()
         pose_stamped.header.stamp = rospy.Time.now()
         self.pose_pub.publish(pose_stamped)
-        
+    
+    def publish_state(self, robot_state: RobotState) -> None:
+        state_msg = State()
+        state_msg.value = robot_state.value
+        self.state_pub.publish(state_msg)
+
 
 if __name__ == '__main__':
 
@@ -36,7 +52,7 @@ if __name__ == '__main__':
 
     # loop till node is running
     while not rospy.is_shutdown():
-        cmd = input("Do you want to publish [y/n] : ")
+        cmd = input("Do you want to publish [y/n/a/i] : ")
         
         # check if the user has selected yes
         if (cmd == 'y'):
@@ -45,6 +61,12 @@ if __name__ == '__main__':
 
             robot.publish_pose()
             rospy.loginfo("[Robot]: publishing pose")
+
+        if (cmd == 'a'):
+            robot.publish_state(robot_state=RobotState.ACTIVE)
+        
+        if (cmd == 'i'):
+            robot.publish_state(robot_state=RobotState.IDLE)
 
         # if not then shutdown
         else:
