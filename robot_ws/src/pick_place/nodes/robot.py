@@ -3,6 +3,7 @@
 import rospy
 from std_msgs.msg import String
 from geometry_msgs.msg import PoseStamped
+from pick_place.msg import State
 
 class Robot:
 
