@@ -5,6 +5,7 @@ from std_msgs.msg import String
 from geometry_msgs.msg import PoseStamped
 from pick_place.msg import State
 from enum import Enum
+from pick_place.srv import GetCurrentRobotState, GetCurrentRobotStateResponse, GetCurrentRobotStateRequest
 
 class RobotState(Enum):
     IDLE = 0
@@ -23,6 +24,17 @@ class Robot:
 
         # creating a state publisher
         self.state_pub = rospy.Publisher('/robot/state', State, queue_size=5)
+
+        # create a service GetCurrentRobotState
+        self.service = rospy.Service("/get_current_robot_state", GetCurrentRobotState, self.service_callback)
+
+    def service_callback(self, req: GetCurrentRobotStateRequest):
+        res = GetCurrentRobotStateResponse()
+        state_msg = State()
+        state_msg.value = RobotState.PAUSED.value
+        res.state = state_msg
+        return res
+
 
     def publish(self):
         self.pub.publish("Hi! I am robot")
