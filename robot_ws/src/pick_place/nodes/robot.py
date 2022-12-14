@@ -2,10 +2,20 @@
 
 import rospy
 from std_msgs.msg import String
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Pose
 from pick_place.msg import State
 from enum import Enum
 from pick_place.srv import GetCurrentRobotState, GetCurrentRobotStateResponse, GetCurrentRobotStateRequest
+import moveit_commander
+import sys
+from moveit_commander import (
+    RobotCommander,
+    PlanningSceneInterface,
+    MoveGroupCommander,
+    MoveItCommanderException
+)
+import tf
+
 
 class RobotState(Enum):
     IDLE = 0
@@ -17,6 +27,23 @@ class RobotState(Enum):
 class Robot:
 
     def __init__(self) -> None:
+        # Move it
+        moveit_commander.roscpp_initialize(sys.argv)    
+        
+        # Robot Commander
+        self.robot = RobotCommander()
+
+        # Planning Scene
+        self.scene = PlanningSceneInterface()
+
+        # Move group
+        group_name = "panda_manipulator"
+        self.move_group = MoveGroupCommander(group_name)
+
+        # Transform Broadcaster
+        self.tf_broadcaster = tf.TransformBroadcaster()
+
+        # type publisher
         self.pub = rospy.Publisher('/type', String, queue_size=5)
 
         # creating pose publisher
@@ -27,6 +54,35 @@ class Robot:
 
         # create a service GetCurrentRobotState
         self.service = rospy.Service("/get_current_robot_state", GetCurrentRobotState, self.service_callback)
+
+    def go_to_pose(self):
+        
+        # pose goals
+        pose_goal = Pose()
+        pose_goal.orientation.w = 1.0
+        pose_goal.position.x = 0.4
+        pose_goal.position.y = 0.1
+        pose_goal.position.z = 0.2
+
+        # visualize
+        self.visualize_pose(pose=pose_goal)
+
+        # move
+        self.move_group.set_pose_target(pose=pose_goal)
+
+        self.move_group.go(wait=True)
+
+        self.move_group.stop()
+
+    def visualize_pose(self, pose:Pose) -> None:
+
+        self.tf_broadcaster.sendTransform((pose.position.x, pose.position.y, pose.position.z), 
+                                           (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
+                                           rospy.Time.now(),
+                                           "goal",
+                                           "panda_link0")
+
+
 
     def service_callback(self, req: GetCurrentRobotStateRequest):
         res = GetCurrentRobotStateResponse()
@@ -73,6 +129,11 @@ if __name__ == '__main__':
 
             robot.publish_pose()
             rospy.loginfo("[Robot]: publishing pose")
+
+            # info
+            rospy.loginfo("[MoveIt]: Go to Pose")
+            robot.go_to_pose()
+
 
         if (cmd == 'a'):
             robot.publish_state(robot_state=RobotState.ACTIVE)
