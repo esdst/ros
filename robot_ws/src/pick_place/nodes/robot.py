@@ -2,7 +2,7 @@
 
 import rospy
 from std_msgs.msg import String
-from geometry_msgs.msg import PoseStamped, Pose
+from geometry_msgs.msg import PoseStamped, Pose, Point
 from pick_place.msg import State
 from enum import Enum
 from pick_place.srv import GetCurrentRobotState, GetCurrentRobotStateResponse, GetCurrentRobotStateRequest
@@ -105,6 +105,18 @@ class Robot:
         state_msg.value = robot_state.value
         self.state_pub.publish(state_msg)
 
+    def add_box(self, name: str, frame_id: str, size: tuple, position=Point) -> None:
+        pose_stamped = PoseStamped()
+        pose_stamped.header.frame_id = frame_id
+        
+        # set the position and orientation
+        pose_stamped.pose.position = position
+        pose_stamped.pose.orientation.w = 1.0
+
+        self.scene.add_box(name=name, pose=pose_stamped, size=size)
+
+    def remove_box(self, name: str) -> None:
+        self.scene.remove_world_object(name=name)
 
 if __name__ == '__main__':
 
@@ -136,13 +148,23 @@ if __name__ == '__main__':
 
 
         if (cmd == 'a'):
-            robot.publish_state(robot_state=RobotState.ACTIVE)
-        
+            #robot.publish_state(robot_state=RobotState.ACTIVE)
+            position = Point()
+            position.x = 0.4
+            position.y = 0.0
+            position.z = 0.1
+
+            robot.add_box("wall", "world", (0.1,0.2,0.6), position)
+
+        if (cmd == 'r'):
+            #robot.publish_state(robot_state=RobotState.IDLE)
+            robot.remove_box("wall")
+
         if (cmd == 'i'):
             robot.publish_state(robot_state=RobotState.IDLE)
 
         # if not then shutdown
-        else:
+        if (cmd == 'n'):
             rospy.loginfo("[Robot]: Shutting down")
             rospy.signal_shutdown("User selected N")
             break
