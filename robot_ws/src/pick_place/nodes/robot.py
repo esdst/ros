@@ -15,7 +15,7 @@ from moveit_commander import (
     MoveItCommanderException
 )
 import tf
-
+from math import tau
 
 class RobotState(Enum):
     IDLE = 0
@@ -73,6 +73,24 @@ class Robot:
         self.move_group.go(wait=True)
 
         self.move_group.stop()
+    
+    def go_to_joints(self):
+
+        # get current joint angles
+        joint_goal = self.move_group.get_current_joint_values()
+        joint_goal[0] = 0
+        joint_goal[1] = -tau / 8 # 1/8 of a turn in opposite direction
+        joint_goal[2] = 0
+        joint_goal[3] = -tau / 4
+        joint_goal[4] = 0
+        joint_goal[5] = 0
+        joint_goal[6] = 0
+
+        # move
+        self.move_group.go(joint_goal, wait=True)
+
+        # stop
+        self.move_group.stop() 
 
     def visualize_pose(self, pose:Pose) -> None:
 
@@ -132,7 +150,7 @@ if __name__ == '__main__':
 
     # loop till node is running
     while not rospy.is_shutdown():
-        cmd = input("Do you want to publish [y/n/a/i] : ")
+        cmd = input("Do you want to publish [y/n/a/i/f] : ")
         
         # check if the user has selected yes
         if (cmd == 'y'):
@@ -143,7 +161,7 @@ if __name__ == '__main__':
             rospy.loginfo("[Robot]: publishing pose")
 
             # info
-            rospy.loginfo("[MoveIt]: Go to Pose")
+            rospy.loginfo("[MoveIt]: Go to Pose [IK]")
             robot.go_to_pose()
 
 
@@ -168,5 +186,10 @@ if __name__ == '__main__':
             rospy.loginfo("[Robot]: Shutting down")
             rospy.signal_shutdown("User selected N")
             break
-
+        
+        if (cmd == 'f'):
+            # info
+            rospy.loginfo("[MoveIt]: Go to Joint [FK]")
+            robot.go_to_joints()
+        
         rate.sleep()
