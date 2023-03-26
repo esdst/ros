@@ -122,18 +122,18 @@ class Robot:
         state_msg = State()
         state_msg.value = robot_state.value
         self.state_pub.publish(state_msg)
-
-    def add_box(self, name: str, frame_id: str, size: tuple, position=Point) -> None:
+    
+    def add_collision_box(self, name: str, frame_id: str, size: tuple, position: Point) -> None:
+        # pose 
         pose_stamped = PoseStamped()
         pose_stamped.header.frame_id = frame_id
-        
-        # set the position and orientation
         pose_stamped.pose.position = position
         pose_stamped.pose.orientation.w = 1.0
+        
+        self.scene.add_box(name=name, pose= pose_stamped, size=size)
+        rospy.loginfo("[Robot]: Added Box")
 
-        self.scene.add_box(name=name, pose=pose_stamped, size=size)
-
-    def remove_box(self, name: str) -> None:
+    def remove_collision_box(self, name: str) -> None:
         self.scene.remove_world_object(name=name)
 
 if __name__ == '__main__':
@@ -150,7 +150,7 @@ if __name__ == '__main__':
 
     # loop till node is running
     while not rospy.is_shutdown():
-        cmd = input("Do you want to publish [y/n/a/i/f] : ")
+        cmd = input("Do you want to publish [y/n/a/r/i/f] : ")
         
         # check if the user has selected yes
         if (cmd == 'y'):
@@ -164,19 +164,19 @@ if __name__ == '__main__':
             rospy.loginfo("[MoveIt]: Go to Pose [IK]")
             robot.go_to_pose()
 
-
         if (cmd == 'a'):
-            #robot.publish_state(robot_state=RobotState.ACTIVE)
+            rospy.loginfo("[Robot]: Adding Collision Box")
             position = Point()
-            position.x = 0.4
+            position.x = 0.5
             position.y = 0.0
-            position.z = 0.1
+            position.z = 0.2
 
-            robot.add_box("wall", "world", (0.1,0.2,0.6), position)
+            robot.add_collision_box(name="table-1", frame_id="panda_link0", size=(0.2, 0.4, 0.4), position=position)
 
         if (cmd == 'r'):
-            #robot.publish_state(robot_state=RobotState.IDLE)
-            robot.remove_box("wall")
+            rospy.loginfo("[Robot]: Removing Collision Box")
+
+            robot.remove_collision_box(name="table-1")
 
         if (cmd == 'i'):
             robot.publish_state(robot_state=RobotState.IDLE)
