@@ -7,6 +7,7 @@ from pick_place.msg import State
 from enum import Enum
 from pick_place.srv import GetCurrentRobotState, GetCurrentRobotStateResponse, GetCurrentRobotStateRequest
 import moveit_commander
+from trajectory_msgs.msg import JointTrajectoryPoint
 import sys
 from moveit_commander import (
     RobotCommander,
@@ -16,6 +17,9 @@ from moveit_commander import (
 )
 import tf
 from math import tau
+import math
+from tf.transformations import quaternion_from_euler
+from moveit_msgs.msg import DisplayTrajectory, Grasp, PlaceLocation
 
 class RobotState(Enum):
     IDLE = 0
@@ -74,6 +78,17 @@ class Robot:
 
         self.move_group.stop()
     
+    def go_to_pose(self, goal: Pose = None) -> None:
+        
+        self.visualize_pose(pose=goal)
+
+        self.move_group.set_pose_target(pose=goal)
+
+        self.move_group.go(wait=True)
+
+        self.move_group.stop()
+
+
     def go_to_joints(self):
 
         # get current joint angles
@@ -136,6 +151,83 @@ class Robot:
     def remove_collision_box(self, name: str) -> None:
         self.scene.remove_world_object(name=name)
 
+    def openGripper(self, posture):
+        
+        # Add both finger joints of panda robot. 
+        posture.joint_names = [str for i in range(2)]
+        posture.joint_names[0] = "panda_finger_joint1"
+        posture.joint_names[1] = "panda_finger_joint2"
+
+        # Set them as open, wide enough for the object to fit.
+        posture.points = [JointTrajectoryPoint()]
+        posture.points[0].positions = [float for i in range(2)]
+        posture.points[0].positions[0] = 0.04
+        posture.points[0].positions[1] = 0.04
+        posture.points[0].time_from_start = rospy.Duration(0.5)
+
+
+    def closedGripper(self, posture):
+        
+        # Add both finger joints of panda robot. 
+        posture.joint_names = [str for i in range(2)]
+        posture.joint_names[0] = "panda_finger_joint1"
+        posture.joint_names[1] = "panda_finger_joint2"
+
+        # Set them as closed. 
+        posture.points = [JointTrajectoryPoint()]
+        posture.points[0].positions = [float for i in range(2)]
+        posture.points[0].positions[0] = 0.00
+        posture.points[0].positions[1] = 0.00
+        posture.points[0].time_from_start = rospy.Duration(0.5)
+    
+    def pickup(self):
+        
+        grasps = [Grasp() for i in range(1)]
+        
+        selected_grasp = grasps[0]
+
+        selected_grasp.grasp_pose.header.frame_id = "panda_link0"
+
+        # parallel to the ground
+        orientation = quaternion_from_euler(-math.pi /
+                                        2, -math.pi / 4, -math.pi / 2)
+
+        # setting orientation
+        selected_grasp.grasp_pose.pose.orientation.x = orientation[0]
+        selected_grasp.grasp_pose.pose.orientation.y = orientation[1]
+        selected_grasp.grasp_pose.pose.orientation.z = orientation[2]
+        selected_grasp.grasp_pose.pose.orientation.w = orientation[3]
+
+        # setting position
+        selected_grasp.grasp_pose.pose.position.x = 0.415
+        selected_grasp.grasp_pose.pose.position.y = 0
+        selected_grasp.grasp_pose.pose.position.z = 0.5
+        
+        # setting pre grasp
+        selected_grasp.pre_grasp_approach.direction.header.frame_id = "panda_link0"
+        selected_grasp.pre_grasp_approach.direction.vector.x = 1.0
+        selected_grasp.pre_grasp_approach.min_distance = 0.09
+        selected_grasp.pre_grasp_approach.desired_distance = 0.1
+
+        # setting post grasp
+        selected_grasp.post_grasp_retreat.direction.header.frame_id = "panda_link0"
+        selected_grasp.post_grasp_retreat.direction.vector.z = 1.0
+        selected_grasp.post_grasp_retreat.min_distance = 0.1
+        selected_grasp.post_grasp_retreat.desired_distance = 0.25
+        
+        # open gripper at pre grasp pose
+        self.openGripper(selected_grasp.pre_grasp_posture)
+
+        # close gripper at grasp pose
+        self.closedGripper(selected_grasp.grasp_posture)
+
+        # set support surface to avoid collision conflict
+        self.move_group.set_support_surface_name("table-1")
+
+        # pickup the object
+        self.move_group.pick("object", grasps)
+       
+       
 if __name__ == '__main__':
 
     # init node
@@ -162,7 +254,13 @@ if __name__ == '__main__':
 
             # info
             rospy.loginfo("[MoveIt]: Go to Pose [IK]")
-            robot.go_to_pose()
+            # pose goals
+            pose_goal = Pose()
+            pose_goal.orientation.w = 1.0
+            pose_goal.position.x = 0.4
+            pose_goal.position.y = 0.1
+            pose_goal.position.z = 0.2
+            robot.go_to_pose(pose_goal)
 
         if (cmd == 'a'):
             rospy.loginfo("[Robot]: Adding Collision Box")
@@ -173,10 +271,19 @@ if __name__ == '__main__':
 
             robot.add_collision_box(name="table-1", frame_id="panda_link0", size=(0.2, 0.4, 0.4), position=position)
 
+            position_object = Point()
+            position_object.x = 0.5
+            position_object.y = 0
+            position_object.z = 0.5
+
+            robot.add_collision_box(name="object", frame_id="panda_link0", size=(0.02, 0.02, 0.2), position=position_object)
+
+
         if (cmd == 'r'):
-            rospy.loginfo("[Robot]: Removing Collision Box")
+            rospy.loginfo("[Robot]: Removing Collision Boxes")
 
             robot.remove_collision_box(name="table-1")
+            robot.remove_collision_box(name="object")
 
         if (cmd == 'i'):
             robot.publish_state(robot_state=RobotState.IDLE)
@@ -192,4 +299,7 @@ if __name__ == '__main__':
             rospy.loginfo("[MoveIt]: Go to Joint [FK]")
             robot.go_to_joints()
         
+        if (cmd == 'p'):
+            robot.pickup()
+
         rate.sleep()
